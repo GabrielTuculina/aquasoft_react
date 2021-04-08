@@ -1,6 +1,6 @@
-function addProjectAction(data) {
+function getProjectsAction(data) {
     return {
-        type: 'ADD_PROJECTS',
+        type: 'GET_PROJECTS',
         payload: data
     }
 }
@@ -33,10 +33,18 @@ function addApolloClient(client) {
     }
 }
 
+function setEmployeeAction(data) {
+    return {
+        type: 'SET_EMPLOYEE',
+        payload: data
+    }
+}
+
 module.exports = {
-    addProjectAction,
+    getProjectsAction,
     addEmployeeAction,
     deleteEmployeeAction,
     updateEmployeeAction,
-    addApolloClient
+    addApolloClient,
+    setEmployeeAction
 };

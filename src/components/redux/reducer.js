@@ -1,28 +1,28 @@
 const initialState = {
     projects: [],
     employees: [],
-    client: {}
+    client: {},
+    editEmployee: {}
 }
 
 function deleteEmployee(employees, id) {
     const new_emp = [];
 
     for(let i = 0; i < employees.length; ++i)
-        if(i != id)
+        if(i !== id)
             new_emp.push(employees[i]);
 
     return new_emp;
 }
 
 function updateEmployee(employees, obj) {
-    const {id, payload} = obj;
     const new_emp = [];
 
     for(let i = 0; i < employees.length; ++i)
-        if(i != id)
+        if(i !== obj.id)
             new_emp.push(employees[i]);
 
-    new_emp.push(payload);
+    new_emp.push(obj);
 
     return new_emp;
 }
@@ -34,7 +34,7 @@ export default function appReducer(state = initialState, action) {
                 ...state,
                 client: action.payload
             }
-        case "ADD_PROJECTS":
+        case "GET_PROJECTS":
             return {
                 ...state,
                 projects: action.payload
@@ -46,6 +46,11 @@ export default function appReducer(state = initialState, action) {
                     ...state.employees,
                     action.payload
                 ]
+            }
+        case "SET_EMPLOYEE":
+            return {
+                ...state,
+                employees: action.payload
             }
         case "DELETE_EMPLOYEE":
             return {
@@ -59,7 +64,7 @@ export default function appReducer(state = initialState, action) {
                 ...state,
                 employees: [
                     updateEmployee(state.employees, action.payload)
-                ]
+                ],
             }
         default:
             return state;

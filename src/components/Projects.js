@@ -8,10 +8,9 @@ import TableHead from '@material-ui/core/TableHead';
 import TableRow from '@material-ui/core/TableRow';
 import Paper from '@material-ui/core/Paper';
 import Button from '@material-ui/core/Button';
-import { useSelector, useDispatch } from 'react-redux';
-import {addProjectAction} from './redux/actions';
-import { gql } from '@apollo/client';
-import usePromise from 'react-promise';
+import { useDispatch } from 'react-redux';
+import { getProjectsAction } from './redux/actions';
+import { gql, useQuery } from '@apollo/client';
     
 const styles = {
     table: {
@@ -21,33 +20,6 @@ const styles = {
         boxShadow: "10px 10px 8px 10px #888888"
     }
 }
-
-const rows = [
-    {
-        "id": 1,
-        "project_name": "Aquasoft first project",
-        "start_date": "30.03.2021",
-        "planned_end_date": "31.07.2022",
-        "description": "Hello World project that weirdly works ... or not",
-        "project_code": "insert random code here"
-    },
-    {
-        "id": 2,
-        "project_name": "Ana are mere",
-        "start_date": "03.04.2020",
-        "planned_end_date": "30.09.2020",
-        "description": "Just another failure",
-        "project_code": "insert random code here2"
-    },
-    {
-        "id": 3,
-        "project_name": "Hello friends",
-        "start_date": "22.04.2021",
-        "planned_end_date": "27.09.2021",
-        "description": "The legend has it they never answered",
-        "project_code": "insert random code here3"
-    }
-];
 
 const headCells = [
     { id: 'project_name', label: 'Name' },
@@ -74,17 +46,28 @@ function TblHead(props) {
 }
 
 function TblBody(props) {
-    console.log(props);
-    // const {rows} = props;
-    // console.log(rows);
+    const {rows} = props;
 
+    if(rows === undefined)
+        return null;
+
+    const getFormatedDate = (timestamp) => {
+        const dateObj = new Date(Number.parseInt(timestamp));
+        
+        const month = dateObj.getMonth();
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const year = dateObj.getFullYear();
+
+        return day  + '-'+ month  + '-' + year;
+    }
+    
     return (
         <TableBody>
             {rows.map(row => (
                 <TableRow key={row.id}>
                     <TableCell align="left">{row.project_name}</TableCell>
-                    <TableCell align="left">{row.start_date}</TableCell>
-                    <TableCell align="left">{row.planned_end_date}</TableCell>
+                    <TableCell align="left">{getFormatedDate(row.start_date)}</TableCell>
+                    <TableCell align="left">{getFormatedDate(row.planned_end_date)}</TableCell>
                     <TableCell align="left">{row.description}</TableCell>
                     <TableCell align="left">{row.project_code}</TableCell>
                     <TableCell align="left">
@@ -112,37 +95,32 @@ function ViewEmployees(props) {
     );
 }
 
-const selectProjects = state => state.projects;
-const selectClient = state => state.client;
-
 function ProjectsComponent() {
     const dispatch = useDispatch();
-    const client = useSelector(selectClient);
-    const [projects, setProjects] = useState([]);
-    
-    useEffect(() => {
-        const fetchProjects = async () => {
-            const result = await client
-                .query({
-                    query: gql`
-                        query {
-                            projects {
-                                id
-                                project_name
-                                start_date
-                                planned_end_date
-                                description
-                                project_code
-                            }
-                        }
-                    `
-                });
-            setProjects(result.data);
-        }
-    }, []);
+    const [projects, setProjects] = useState();
 
-    dispatch(addProjectAction(projects));
-    console.log(projects);
+    const { data } = useQuery( gql`
+        query {
+            projects {
+                id
+                project_name
+                start_date
+                planned_end_date
+                description
+                project_code
+            }
+        }
+    `);
+
+    useEffect(() => {
+        if(data && data.projects) {
+            setProjects(data.projects);
+        }
+    }, [data]);
+
+    if(projects !== undefined) {
+        dispatch(getProjectsAction(projects));
+    }
 
     return (
         <div style={styles.table}>

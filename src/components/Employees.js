@@ -1,16 +1,22 @@
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import { useParams } from 'react-router-dom'
-import Table from '@material-ui/core/Table';
-import TableBody from '@material-ui/core/TableBody';
-import TableCell from '@material-ui/core/TableCell';
-import TableContainer from '@material-ui/core/TableContainer';
-import TableHead from '@material-ui/core/TableHead';
-import TableRow from '@material-ui/core/TableRow';
-import TableSortLabel from '@material-ui/core/TableSortLabel';
-import Paper from '@material-ui/core/Paper';
-import Button from '@material-ui/core/Button';
-import { withStyles } from '@material-ui/core';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    TableSortLabel,
+    Paper,
+    Button
+} from '@material-ui/core';
+import { useDispatch } from 'react-redux';
+import { gql, useQuery, useMutation } from '@apollo/client';
 
+import { setEmployeeAction, deleteEmployeeAction } from './redux/actions';
+import CreateEmployeeModal from './modals/CreateEmployeeModal';
+import EditEmployeeModal from './modals/EditEmployeeModal';
 
 const styles = {
     table: {
@@ -30,31 +36,7 @@ const styles = {
         top: 20,
         width: 1,
     },
-    addButton: {
-        marginTop: "1vh",
-        marginRight: "1vw",
-        float: "right"
-    },
 }
-
-const rows = [
-    {
-        "id": 1,
-        "name": "Gabriel",
-        "email": "followMe@DoNotDisturb.com",
-        "hire_date": "19.04.2017",
-        "salary": "8500",
-        "job_title": "Programul primul inginer",
-    },
-    {
-        "id": 2,
-        "name": "Andrew",
-        "email": "sadBumpkin@gmail.com",
-        "hire_date": "12.04.2021",
-        "salary": "5000",
-        "job_title": "Middle Software Developer",
-    }
-];
 
 const headCells = [
     { id: 'name', label: 'Name' },
@@ -131,8 +113,23 @@ function TblHead(props) {
 }
 
 function TblBody(props) {
-    const { order, orderBy } = props;
+    const { order, orderBy, rows, setStateEmployees, dispatch, selector } = props;
 
+    const { editTrigger, setEditTrigger } = useState(false);
+
+    if(rows === undefined)
+        return null;
+
+    const getFormatedDate = (timestamp) => {
+        const dateObj = new Date(Number.parseInt(timestamp));
+        
+        const month = dateObj.getMonth();
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const year = dateObj.getFullYear();
+
+        return day  + '-'+ month  + '-' + year;
+    }
+    
     return (
         <TableBody>
             {stableSort(rows, getComparator(order, orderBy))
@@ -140,14 +137,23 @@ function TblBody(props) {
                     <TableRow key={row.id}>
                         <TableCell align="left">{row.name}</TableCell>
                         <TableCell align="left">{row.email}</TableCell>
-                        <TableCell align="left">{row.hire_date}</TableCell>
+                        <TableCell align="left">{getFormatedDate(row.hire_date)}</TableCell>
                         <TableCell align="left">{row.salary}</TableCell>
                         <TableCell align="left">{row.job_title}</TableCell>
                         <TableCell align="left">
-                            <EditButton />
+                            <EditEmployeeModal
+                                editTrigger={editTrigger}
+                                setEditTrigger={setEditTrigger}
+                                employeeToUpdate={row}
+                            />
                         </TableCell>
                         <TableCell align="left">
-                            <DeleteButton />
+                            <DeleteButton
+                                employeeToDelete={row}
+                                setStateEmployees={setStateEmployees}
+                                dispatch={dispatch}
+                                selector={selector}
+                            />
                         </TableCell>
                     </TableRow>
                 ))
@@ -156,64 +162,55 @@ function TblBody(props) {
     );
 }
 
-const StyledButton = withStyles({
-    root: {
-      borderRadius: 3,
-      border: 0,
-      color: '#00cc00',
-      height: 48,
-      padding: '0 30px',
-      boxShadow: '0 3px 5px 2px rgba(255, 105, 135, .3)',
-    },
-    label: {
-      textTransform: 'capitalize',
-    },
-})(Button);
-
-function AddButton(props) {
-
-    return (
-        <Button variant="contained" color="primary" style={styles.addButton} onClick={() => addEmployee(props)} >
-            Add
-        </Button>
-    );
-}
-
-function addEmployee(props) {
-
-}
-
-function EditButton(props) {
-
-    return (
-        <StyledButton onClick={() => editEmployee(props)} >
-            Edit
-        </StyledButton>
-    );
-}
-
-function editEmployee(props) {
-    
-}
+const DELETE_EMPLOYEE = gql`
+    mutation DeleteEmployee($id: Int!, $project_id: Int!) {
+        deleteEmployee (
+            id: $id,
+            project_id: $project_id
+        ) {
+            id
+            name
+            email
+            hire_date
+            salary
+            job_title
+            project_id
+        }
+    }`;
 
 function DeleteButton(props) {
 
+    const { employeeToDelete, setStateEmployees, dispatch } = props;
+
+    const [deleteEmployee] = useMutation(DELETE_EMPLOYEE);
+
     return (
-        <Button variant="contained" color="secondary" onClick={() => deleteEmployee(props)} >
+        <Button variant="contained" color="secondary" onClick={e => {
+            e.preventDefault();
+            deleteEmployee({variables: {
+                    id: Number.parseInt(employeeToDelete.id),
+                    project_id: Number.parseInt(employeeToDelete.project_id)
+                }})
+                .then(response => {
+                    console.log(response);
+                    dispatch(deleteEmployeeAction(employeeToDelete.id));
+                    setStateEmployees( response.data.deleteEmployee );
+                })
+                .catch(err => {
+                    console.log(JSON.stringify(err, null, 2));
+                });
+        }} >
             Delete
         </Button>
     );
 }
 
-function deleteEmployee(props) {
-    
-}
-
-
 function EmployeesComponent() {
     const { id } = useParams();
-    const [order, setOrder] = React.useState('asc');
-    const [orderBy, setOrderBy] = React.useState('calories');
+    const dispatch = useDispatch();
+    const [order, setOrder] = useState('asc');
+    const [orderBy, setOrderBy] = useState('hire_date');
+    const [employees, setEmployees] = useState();
 
     const handleRequestSort = (event, property) => {
         const isAsc = orderBy === property && order === 'asc';
@@ -221,10 +218,34 @@ function EmployeesComponent() {
         setOrderBy(property);
     };
 
+    const { data } = useQuery( gql`
+        query {
+            employeesByProjectId (project_id: ${id}) {
+                id
+                name
+                email
+                hire_date
+                salary
+                job_title
+                project_id
+              }
+        }
+    `);
+
+    useEffect(() => {
+        if(data && data.employeesByProjectId) {
+            setEmployees(data.employeesByProjectId);
+            dispatch(setEmployeeAction(employees));
+        }
+    }, [data]);
+
     return (
         <div style={styles.table}>
-            <AddButton /> <br/><br/>
-
+            <CreateEmployeeModal
+                stateEmployees={employees}
+                setStateEmployees={setEmployees}
+            />
+            <br/><br/>
             <Paper>
                 <TableContainer>
                     <Table
@@ -240,6 +261,9 @@ function EmployeesComponent() {
                         <TblBody
                             order={order}
                             orderBy={orderBy}
+                            rows={employees}
+                            setStateEmployees={setEmployees}
+                            dispatch={dispatch}
                         />
                     </Table>
                 </TableContainer>
